@@ -1,0 +1,37 @@
+{
+  "name": "webchat-backend",
+  "version": "1.0.0",
+  "description": "Backend server for the webchat with socket.io",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cosamores/flaskchat.git"
+  },
+  "keywords": [
+    "chat",
+    "websocket",
+    "nodejs"
+  ],
+  "author": "Diego Cosamores",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Cosamores/flaskchat/issues"
+  },
+  "homepage": "https://github.com/Cosamores/flaskchat#readme",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.10.0",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0"
+  }
+}

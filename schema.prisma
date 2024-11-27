@@ -1,0 +1,58 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  created_at DateTime      @default(now())
+  username   String        @unique
+  password   String
+  rooms      UserRoom[]    @relation("UserRooms")
+  messages   Message[]     @relation("UserMessages")
+  createdRooms Room[]      @relation("RoomCreator")
+
+  @@map("users")
+}
+
+model Room {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  created_at DateTime      @default(now())
+  name       String
+  creatorId  String        @db.ObjectId
+  creator    User          @relation(fields: [creatorId], references: [id], name: "RoomCreator")
+  users      UserRoom[]    @relation("RoomUsers")
+  messages   Message[]     @relation("RoomMessages")
+  url        String?
+
+  @@map("rooms")
+}
+
+model Message {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  created_at DateTime @default(now())
+  content    String?
+  senderId   String   @db.ObjectId
+  roomId     String   @db.ObjectId
+  sender     User     @relation(fields: [senderId], references: [id], name: "UserMessages")
+  room       Room     @relation(fields: [roomId], references: [id], name: "RoomMessages")
+  fileUrl    String?  // URL or path to the file
+  fileType   String?  // MIME type of the file
+
+  @@map("messages")
+}
+
+model UserRoom {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  roomId     String   @db.ObjectId
+  user       User     @relation(fields: [userId], references: [id], name: "UserRooms")
+  room       Room     @relation(fields: [roomId], references: [id], name: "RoomUsers")
+
+  @@map("user_rooms")
+  @@unique([userId, roomId], map: "unique_user_room")
+}
