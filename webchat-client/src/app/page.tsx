@@ -11,11 +11,11 @@ export default function Home() {
     const token = localStorage.getItem('token');
 
     if (token) {
-      router.replace('/rooms'); // Redirect to /rooms if authenticated
+      router.replace('/rooms');
     } else {
-      router.replace('/login'); // Redirect to /login if not authenticated
+      router.replace('/login');
     }
   }, [router]);
 
-  return null; // Render nothing as we are redirecting
+  return null;
 }

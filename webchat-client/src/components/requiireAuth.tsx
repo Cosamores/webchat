@@ -4,7 +4,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function RequireAuth({ children }: { children: React.ReactNode }) {
+interface RequireAuthProps {
+  children: React.ReactNode;
+}
+
+export default function RequireAuth({ children }: RequireAuthProps) {
   const router = useRouter();
 
   useEffect(() => {

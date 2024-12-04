@@ -1,4 +1,4 @@
-// app/(main)/chat/page.tsx
+// app/(main)/chat/page.tsx *old chat page*
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
