@@ -2,13 +2,18 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import RequireAuth from '@/components/requiireAuth';
 import RoomList from '@/components/RoomList';
 import ChatComponent from '@/components/ChatComponent';
 
 export default function Rooms() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const token = localStorage.getItem('token');
 
+  if (!token) {
+    return null;
+  }
   return (
     <RequireAuth>
       <div className="flex h-screen">

@@ -9,6 +9,8 @@ import {
   HiOutlineShare,
   HiOutlinePencilSquare,
   HiOutlineTrash,
+  HiOutlineMoon,
+  HiOutlineSun,
 } from 'react-icons/hi2';
 interface Room {
   id: string;
@@ -30,17 +32,33 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
   useEffect(() => {
     const fetchRooms = async () => {
       const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
+      if (!token) {
+        setError('Token not found.');
+        return;
+      }
+      console.log('fetchRooms token:', token);
       try {
-        const response = await fetch('http://localhost:3000/rooms', {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await fetch(`http://localhost:3000/rooms/`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId }),
         });
+        console.log('fetchRooms response:', response);
         if (response.ok) {
           const data = await response.json();
+          console.log('fetchRooms data:', data);
           setRooms(data);
         } else {
+          const errorData = await response.json();
+          console.error('fetchRooms error:', errorData);
           setError('Falha ao buscar salas.');
         }
-      } catch {
+      } catch (error) {
+        console.error('fetchRooms catch error:', error);
         setError('Falha ao buscar salas.');
       }
     };
@@ -102,17 +120,20 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
 
   const handleEditRoom = async (roomId: string) => {
     const newName = prompt('Insira o nome da nova sala');
-    if (!newName || newName.trim() === '') return <div>O nome da sala não pode estar vazio.</div>;
+    if (!newName || newName.trim() === '') {
+      setError('O nome da sala não pode estar vazio.');
+      return;
+    }
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch('http://localhost:3000/rooms/edit', {
+      const response = await fetch(`http://localhost:3000/rooms/edit/${roomId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ roomId, newName }),
+        body: JSON.stringify({ name: newName }), // Changed from { newName } to { name: newName }
       });
       if (response.ok) {
         const updatedRoomData = await response.json();
@@ -145,44 +166,19 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
     }
   };
 
-
   const handleDeleteRoom = async (roomId: string) => {
-    getRoomName(roomId).then((name) => {
-      setRoomName(name);
-      console.log(name);
-      if (!confirm(`Tem certeza que deseja deletar a sala ${name}`)) return;
-      
-      const token = localStorage.getItem('token');
-      fetch(`http://localhost:3000/rooms/delete`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ roomId }),
-      }).then(response => {
-        if (response.ok) {
-          setRooms((prev) => prev.filter((room) => room.id !== roomId));
-          if (selectedRoomId === roomId) {
-            onSelectRoom(null);
-          }
-        } else {
-          setError('Failed to delete room.');
-        }
-      }).catch(() => {
-        setError('Failed to delete room.');
-      });
-    });
+    const roomName = await getRoomName(roomId);
+    if (!confirm(`Tem certeza que deseja deletar a sala ${roomName}?`)) return;
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`http://localhost:3000/rooms/delete`, {
+      const response = await fetch(`http://localhost:3000/rooms/delete/${roomId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ roomId }),
+        body: JSON.stringify({ roomId }), 
       });
       if (response.ok) {
         setRooms((prev) => prev.filter((room) => room.id !== roomId));
@@ -190,51 +186,82 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
           onSelectRoom(null);
         }
       } else {
-        setError('Failed to delete room.');
+        setError('Falha ao deletar sala.');
       }
     } catch {
-      setError('Failed to delete room.');
+      setError('Falha ao deletar sala.');
+    }
+  };
+
+  const handleUploadImage = async (roomId: string, file: File) => {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('roomId', roomId);
+  
+    try {
+      const response = await fetch('http://localhost:3000/files/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        alert('Imagem enviada com sucesso!');
+      } else {
+        setError('Erro ao enviar imagem.');
+      }
+    } catch {
+      setError('Erro ao enviar imagem.');
     }
   };
 
   const isRoomSelected = (roomId: string) => selectedRoomId === roomId;
 
   return (
-    <div className="p-4 h-full flex flex-col">
+    <div className="p-4 h-full flex flex-col bg-slate-300 dark:bg-stone-900 dark:border-stone-900 border shadow-lg">
       <div className="mb-4">
-        <h2 className="text-xl font-bold mb-2">Rooms</h2>
-        <p>Hello, {user}</p>
-        <Button
-          onClick={toggleTheme}
-          label={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-          className="mt-2"
-        />
+        <div className='flex flex-row-reverse flex-1 p-2 my-4 items-center'>
+          <Button
+            onClick={toggleTheme}
+            icon={theme === 'light' ? <HiOutlineMoon /> : <HiOutlineSun />}
+            className="p-2 flex-shrink text-blue-700 bg-red-200 border-white border shadow-2xl"
+          />
+          <h2 className="text-xl flex-grow font-bold mb-2">Bem Vindo(a) ao Webchat</h2>
+        </div>
+        <p>Olá, {user}</p>
+        <h3 className="text-lg font-bold mt-2">Gostaria de criar uma nova sala?</h3>
+        
       </div>
       {error && <p className="text-red-500">{error}</p>}
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col justify-center items-center">
         <input
           type="text"
           value={roomName}
           onChange={(e) => setRoomName(e.target.value)}
-          placeholder="Enter new room name"
+          placeholder="Insira o nome da sala"
           className="w-full px-4 py-2 border rounded mb-2"
         />
-        <Button onClick={handleCreateRoom} label="Create Room" className="w-full" />
+        <Button onClick={handleCreateRoom} label="Criar Sala" className="w-[100%]" />
       </div>
       <div className="flex-grow overflow-y-auto">
+        <h3 className="text-lg font-bold my-2">Suas salas disponíveis:</h3>
         {rooms.length > 0 ? (
           <ul>
           {rooms.map((room) => (
             <li
               key={room.id}
-              className={`flex flex-col items-center justify-between p-2 rounded cursor-pointer mb-2 ${
+              className={`flex flex-col items-center justify-between p-2 rounded cursor-pointer dark:bg-slate-400 mb-2 ${
                 isRoomSelected(room.id)
-                  ? 'bg-gray-200'
+                  ? 'bg-green-200 dark:bg-slate-50 border-2 border-blue-300 dark:border-blue-600 radius-6'
                   : 'bg-white dark:bg-neutral-800'
               }`}
               onClick={() => onSelectRoom(room.id)}
             >
-              <span className='w-full rounded p-2 font-bold bg-orange-300'>{room.name}</span>
+              <span className='w-full rounded p-2 font-bold bg-orange-300 dark:bg-stone-800'>{room.name}</span>
               <div className="flex space-x-1">
                 <Button
                   onClick={() => handleJoinRoom(room.id)}
@@ -257,7 +284,7 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
           ))}
         </ul>
         ) : (
-          <p>No rooms available.</p>
+          <p>Nenhuma Sala disponível</p>
         )}
       </div>
     </div>
