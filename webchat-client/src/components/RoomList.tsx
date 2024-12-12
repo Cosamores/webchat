@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import Button from '@/components/Button';
+import { useRouter } from 'next/navigation';
 import { ThemeContext } from '@/context/themeContext';
 import {
   HiOutlineChatBubbleBottomCenter,
@@ -13,13 +14,13 @@ import {
   HiOutlineSun,
 } from 'react-icons/hi2';
 interface Room {
-  id: string;
+  id: number;
   name: string;
 }
 
 interface RoomListProps {
-  selectedRoomId: string | null;
-  onSelectRoom: (roomId: string | null) => void;
+  selectedRoomId: number | null;
+  onSelectRoom: (roomId: number | null) => void;
 }
 
 const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => {
@@ -28,13 +29,14 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
   const [roomName, setRoomName] = useState('');
   const [error, setError] = useState('');
   const [user, setUser] = useState<string>('');
-
+  const router = useRouter();
   useEffect(() => {
     const fetchRooms = async () => {
       const token = localStorage.getItem('token');
       const userId = localStorage.getItem('userId');
-      if (!token) {
-        setError('Token not found.');
+      if (!token || !userId) {
+        setError('Token não encontrado. Faça o login novamente.');
+        router.push('/login');
         return;
       }
       console.log('fetchRooms token:', token);
@@ -45,14 +47,18 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId: parseInt(userId) }),
         });
         console.log('fetchRooms response:', response);
         if (response.ok) {
           const data = await response.json();
           console.log('fetchRooms data:', data);
           setRooms(data);
-        } else {
+        } else if (response.status === 404) {
+          console.error('fetchRooms 404:', response);
+          setError('Nenhuma sala encontrada.');
+        }
+        else {
           const errorData = await response.json();
           console.error('fetchRooms error:', errorData);
           setError('Falha ao buscar salas.');
@@ -84,14 +90,14 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
         const newRoom = newRoomData.room;
         setRooms((prev) => [...prev, newRoom]);
       } else {
-        setError('Erro ao criar sala.');
+        setError('O nome da sala não pode estar vazio.');
       }
     } catch {
       setError('Falha ao criar sala.');
     }
   };
 
-  const handleJoinRoom = async (roomId: string) => {
+  const handleJoinRoom = async (roomId: number) => {
     const token = localStorage.getItem('token');
     try {
       const response = await fetch('http://localhost:3000/rooms/join', {
@@ -112,13 +118,13 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
     }
   };
 
-  const handleShareRoom = (roomId: string) => {
+  const handleShareRoom = (roomId: number) => {
     const roomLink = `${window.location.origin}/rooms?roomId=${roomId}`;
     navigator.clipboard.writeText(roomLink);
     alert('Link da sala copiado para a área de transferência!');
   };
 
-  const handleEditRoom = async (roomId: string) => {
+  const handleEditRoom = async (roomId: number) => {
     const newName = prompt('Insira o nome da nova sala');
     if (!newName || newName.trim() === '') {
       setError('O nome da sala não pode estar vazio.');
@@ -133,7 +139,7 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: newName }), // Changed from { newName } to { name: newName }
+        body: JSON.stringify({ name: newName }),
       });
       if (response.ok) {
         const updatedRoomData = await response.json();
@@ -149,7 +155,7 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
     }
   };
 
-  const getRoomName = async (roomId: string): Promise<string> => {
+  const getRoomName = async (roomId: number): Promise<string> => {
     const token = localStorage.getItem('token');
     const response = await fetch(`http://localhost:3000/rooms/name/${roomId}`, {
       method: 'GET',
@@ -166,19 +172,20 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
     }
   };
 
-  const handleDeleteRoom = async (roomId: string) => {
+  const handleDeleteRoom = async (roomId: number) => {
     const roomName = await getRoomName(roomId);
+    console.log('roomName:', roomName);
     if (!confirm(`Tem certeza que deseja deletar a sala ${roomName}?`)) return;
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`http://localhost:3000/rooms/delete/${roomId}`, {
-        method: 'DELETE',
+      const response = await fetch(`http://localhost:3000/rooms/delete`, {
+        method: 'PUT', // Change to PUT method
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ roomId }), 
+        body: JSON.stringify({ roomId }),
       });
       if (response.ok) {
         setRooms((prev) => prev.filter((room) => room.id !== roomId));
@@ -193,11 +200,11 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
     }
   };
 
-  const handleUploadImage = async (roomId: string, file: File) => {
+  const handleUploadImage = async (roomId: number, file: File) => {
     const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('roomId', roomId);
+    formData.append('roomId', roomId.toString());
   
     try {
       const response = await fetch('http://localhost:3000/files/upload', {
@@ -219,7 +226,7 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
     }
   };
 
-  const isRoomSelected = (roomId: string) => selectedRoomId === roomId;
+  const isRoomSelected = (roomId: number) => selectedRoomId === roomId;
 
   return (
     <div className="p-4 h-full flex flex-col bg-slate-300 dark:bg-stone-900 dark:border-stone-900 border shadow-lg">
@@ -228,7 +235,7 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
           <Button
             onClick={toggleTheme}
             icon={theme === 'light' ? <HiOutlineMoon /> : <HiOutlineSun />}
-            className="p-2 flex-shrink text-blue-700 bg-red-200 border-white border shadow-2xl"
+            className="p-2 flex-shrink text-yellow-100 dark:text-blue-800 text-bold opacity-50 dark:bg-red-200 border-yellow-300 dark:border-yellow-00 rounded-[50%] border-2 shadow-md dark:shadow-slate-600 shadow-red-800"
           />
           <h2 className="text-xl flex-grow font-bold mb-2">Bem Vindo(a) ao Webchat</h2>
         </div>
@@ -244,6 +251,8 @@ const RoomList: React.FC<RoomListProps> = ({ selectedRoomId, onSelectRoom }) => 
           onChange={(e) => setRoomName(e.target.value)}
           placeholder="Insira o nome da sala"
           className="w-full px-4 py-2 border rounded mb-2"
+          autoComplete="off" 
+          aria-label="Nome da Nova Sala" // Accessibility label
         />
         <Button onClick={handleCreateRoom} label="Criar Sala" className="w-[100%]" />
       </div>

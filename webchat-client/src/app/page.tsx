@@ -13,7 +13,10 @@ export default function Home() {
     if (token) {
       router.replace('/rooms');
     } else {
+      const allowedPaths = ['/login', '/register'];
+      if (!allowedPaths.includes(window.location.pathname)) {
       router.replace('/login');
+      }
     }
   }, [router]);
 

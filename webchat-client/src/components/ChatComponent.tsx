@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Button from '@/components/Button';
 
 interface Message {
@@ -13,7 +14,7 @@ interface Message {
 }
 
 interface ChatComponentProps {
-  roomId: string;
+  roomId: number;
 }
 
 const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
@@ -26,6 +27,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    console.log('Fetching messages for room:', roomId);
 
     if (!roomId) {
       setError('Room_ID é requerido para esta página.');
@@ -39,19 +41,19 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
         });
         if (response.ok) {
           const data = await response.json();
+          console.log('Fetched messages:', data);
           setMessages(data);
           scrollToBottom();
         } else {
-          console.error('Failed to fetch messages', response.status, response.statusText);
+          console.error('Não foi possível buscar mensagens: ', response.status, response.statusText);
         }
       } catch (error) {
-        console.error('Error fetching messages:', error);
+        console.error('Erro ao buscar mensagens: ', error);
       }
     };
 
     fetchMessages();
 
-    // Implement polling to fetch messages every 5 seconds
     const interval = setInterval(fetchMessages, 5000);
 
     return () => {
@@ -99,7 +101,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
     const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('roomId', roomId);
+    formData.append('roomId', roomId.toString());
     formData.append('type', 'image');
 
     try {
@@ -112,9 +114,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
       });
 
       if (response.ok) {
-        // Image message will be received via polling
+        const newMessage = await response.json();
+        console.log('Image uploaded successfully:', newMessage);
+        setMessages((prev) => [...prev, newMessage.data]);
         setImagePreview(null);
         setSelectedFile(null);
+        scrollToBottom();
       } else {
         setError('Erro ao enviar imagem.');
       }
@@ -147,14 +152,17 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
         {messages.map((message, index) => (
           <div key={index} className="mb-2 flex items-start">
             <span className="font-semibold m-2 p-2 text-blue-600">{message.sender.username}:</span>
-            {message.type === 'image' ? (
-              <div className='flex flex-col '>                
-              <span className='text-[10px] text-gray-500'>{new Date(message.created_at).toLocaleString()}</span>
-                <img
-                  alt="Image"
-                  className="max-w-xs max-h-xs rounded-lg border"
-                  src={`http://localhost:3000${message.fileUrl}`} // Ensure this path matches static serving
-                />
+            {message.type === 'image' && message.fileUrl ? (
+              <div className='flex flex-col '>
+                <span className='text-[10px] text-gray-500'>{new Date(message.created_at).toLocaleString()}</span>
+                <div className="relative max-w-xs max-h-xs rounded-lg border">
+                  <Image
+                    alt={`${message.sender.username} enviou uma imagem`}
+                    src={`http://localhost:3000${message.fileUrl}`}
+                    fill
+                    className="rounded-sm"
+                  />
+                </div>
               </div>
             ) : (
               <div className='flex flex-col justify-start items-start p-2'>
@@ -172,9 +180,9 @@ const ChatComponent: React.FC<ChatComponentProps> = ({ roomId }) => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => {
-        if (e.key === 'Enter') {
-          handleSendMessage();
-        }
+            if (e.key === 'Enter') {
+              handleSendMessage();
+            }
           }}
           placeholder="Digite sua mensagem..."
           className="dark:bg-slate-900 dark:text-white flex-grow px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary mr-2"
